@@ -1,0 +1,20 @@
+profiles:
+  profile1:
+    operation: upload
+    host: sftp.example.com
+    port: "22"
+    user: user1
+    password: pass1
+    private_key: /path/to/private/key1
+    local_base_path: /local/path1
+    remote_base_path: /remote/path1
+
+  profile2:
+    operation: download
+    host: sftp.example2.com
+    port: "22"
+    user: user2
+    password: pass2
+    private_key: /path/to/private/key2
+    local_base_path: /local/path2
+    remote_base_path: /remote/path2
