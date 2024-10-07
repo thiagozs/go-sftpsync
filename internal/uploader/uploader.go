@@ -75,12 +75,21 @@ func (u *Uploader) UploadFiles() error {
 		if cont.Dir {
 			log.Printf("Local Dir: %s\n", cont.Path)
 
-			_, sec, err := utils.ParsePath(cont.Path, u.remoteBasePath)
-			if err != nil {
-				return fmt.Errorf("failed to parse path: %v", err)
-			}
+			fmt.Println(cont.Path)
+			fmt.Println(u.remoteBasePath)
 
-			remotePath := filepath.Join(u.remoteBasePath, sec)
+			var remotePath string
+
+			if strings.Contains(cont.Path, u.remoteBasePath) {
+				_, sec, err := utils.ParsePath(cont.Path, u.remoteBasePath)
+				if err != nil {
+					return fmt.Errorf("failed to parse path: %v", err)
+				}
+				remotePath = filepath.Join(u.remoteBasePath, sec)
+
+			} else {
+				remotePath = u.remoteBasePath
+			}
 
 			log.Printf("Remote Dir: %s\n", remotePath)
 
@@ -91,12 +100,23 @@ func (u *Uploader) UploadFiles() error {
 		} else if cont.File {
 			log.Printf("Local File: %s Size:(%s)\n", cont.Path, csize.FormatSize(cont.Info.Size()))
 
-			_, sec, err := utils.ParsePath(cont.Path, u.remoteBasePath)
-			if err != nil {
-				return fmt.Errorf("failed to parse path: %v", err)
-			}
+			fmt.Println(cont.Path)
+			fmt.Println(u.remoteBasePath)
 
-			remotePath := filepath.Join(u.remoteBasePath, sec)
+			var remotePath string
+
+			if strings.Contains(cont.Path, u.remoteBasePath) {
+				_, sec, err := utils.ParsePath(cont.Path, u.remoteBasePath)
+				if err != nil {
+					return fmt.Errorf("failed to parse path: %v", err)
+				}
+
+				remotePath = filepath.Join(u.remoteBasePath, sec)
+
+			} else {
+				fileName := filepath.Base(cont.Path)
+				remotePath = filepath.Join(u.remoteBasePath, fileName)
+			}
 
 			log.Printf("Remote File: %s\n", remotePath)
 
@@ -108,6 +128,7 @@ func (u *Uploader) UploadFiles() error {
 			}
 
 			if remoteInfo == nil {
+				log.Printf("Upload: %s (Size: %s)\n", cont.Path, csize.FormatSize(cont.Info.Size()))
 				if err := u.sftp.UploadFile(cont.Path, remotePath); err != nil {
 					return fmt.Errorf("failed to upload file: %v", err)
 				}
@@ -124,7 +145,7 @@ func (u *Uploader) UploadFiles() error {
 				}
 
 				log.Printf("File exists but is outdated: %s\n", remotePath)
-				log.Printf("Uploading file: %s (Size: %s)\n", remotePath, csize.FormatSize(cont.Info.Size()))
+				log.Printf("Upload: %s (Size: %s)\n", remotePath, csize.FormatSize(cont.Info.Size()))
 				if err := u.sftp.UploadFile(cont.Path, remotePath); err != nil {
 					return fmt.Errorf("failed to upload file: %v", err)
 				}
