@@ -114,7 +114,7 @@ func (u *Uploader) UploadFiles() error {
 
 			} else {
 				if remoteInfo.Size() == cont.Info.Size() {
-					log.Printf("File exists and is up-to-date: %s\n", cont.Path)
+					log.Printf("File exists and is up-to-date: %s (Size: %s)\n", cont.Path, csize.FormatSize(cont.Info.Size()))
 					continue
 
 				} else if remoteInfo.Size() != cont.Info.Size() {
@@ -123,6 +123,8 @@ func (u *Uploader) UploadFiles() error {
 					}
 				}
 
+				log.Printf("File exists but is outdated: %s\n", remotePath)
+				log.Printf("Uploading file: %s (Size: %s)\n", remotePath, csize.FormatSize(cont.Info.Size()))
 				if err := u.sftp.UploadFile(cont.Path, remotePath); err != nil {
 					return fmt.Errorf("failed to upload file: %v", err)
 				}
