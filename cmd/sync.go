@@ -57,8 +57,8 @@ var syncCmd = &cobra.Command{
 				for _, profile := range profiles {
 					log.Println(profile)
 				}
-				return
 
+				return
 			}
 
 			// Executing profile settings
