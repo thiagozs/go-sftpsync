@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"log"
+	"slices"
 
 	"github.com/spf13/cobra"
 	"github.com/thiagozs/go-sftpsync/internal/domain"
@@ -21,6 +22,7 @@ var (
 	privateKey     string
 	configFile     string
 	profileName    string
+	listProfiles   bool
 )
 
 var syncCmd = &cobra.Command{
@@ -35,15 +37,33 @@ var syncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		opts := []sftpsync.Options{}
 
+		// Config file settings
 		if configFile != "" {
-			if profileName == "" {
-				log.Println("profile name is required")
-				return
-			}
-
 			config, err := utils.ReadConfig(configFile)
 			if err != nil {
 				log.Fatalf("failed to read config file: %v", err)
+				return
+			}
+
+			// Profile settings list
+			if listProfiles {
+				profiles := []string{}
+				for profile := range config.Profiles {
+					profiles = append(profiles, profile)
+				}
+
+				slices.Sort(profiles)
+
+				for _, profile := range profiles {
+					log.Println(profile)
+				}
+				return
+
+			}
+
+			// Executing profile settings
+			if profileName == "" {
+				log.Println("profile name is required")
 				return
 			}
 
@@ -116,7 +136,7 @@ func init() {
 	syncCmd.PersistentFlags().StringVarP(&remoteBasePath, "remote-base-path", "r", "", "Remote base path")
 	syncCmd.PersistentFlags().StringVarP(&configFile, "config-file", "c", "", "Config file")
 	syncCmd.PersistentFlags().StringVarP(&profileName, "profile", "f", "", "Profile name")
-
+	syncCmd.PersistentFlags().BoolVarP(&listProfiles, "list-profiles", "L", false, "List profiles")
 }
 
 func AddOptionIfNotEmpty(opts []sftpsync.Options,
