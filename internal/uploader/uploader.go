@@ -80,7 +80,9 @@ func (u *Uploader) UploadFiles() error {
 
 			var remotePath string
 
-			if strings.Contains(cont.Path, u.remoteBasePath) {
+			if u.remoteBasePath != "" &&
+				strings.Contains(cont.Path, u.remoteBasePath) {
+				log.Printf("CONTAINS Remote Base Path: %s\n", u.remoteBasePath)
 				_, sec, err := utils.ParsePath(cont.Path, u.remoteBasePath)
 				if err != nil {
 					return fmt.Errorf("failed to parse path: %v", err)
@@ -88,7 +90,9 @@ func (u *Uploader) UploadFiles() error {
 				remotePath = filepath.Join(u.remoteBasePath, sec)
 
 			} else {
-				remotePath = u.remoteBasePath
+				log.Printf("DOES NOT CONTAIN Remote Base Path: %s\n", u.remoteBasePath)
+				paths := strings.Split(cont.Path, u.localBasePath)
+				remotePath = filepath.Join(u.remoteBasePath, paths[1])
 			}
 
 			log.Printf("Remote Dir: %s\n", remotePath)
@@ -105,7 +109,8 @@ func (u *Uploader) UploadFiles() error {
 
 			var remotePath string
 
-			if strings.Contains(cont.Path, u.remoteBasePath) {
+			if u.remoteBasePath != "" &&
+				strings.Contains(cont.Path, u.remoteBasePath) {
 				_, sec, err := utils.ParsePath(cont.Path, u.remoteBasePath)
 				if err != nil {
 					return fmt.Errorf("failed to parse path: %v", err)
@@ -114,8 +119,10 @@ func (u *Uploader) UploadFiles() error {
 				remotePath = filepath.Join(u.remoteBasePath, sec)
 
 			} else {
-				fileName := filepath.Base(cont.Path)
-				remotePath = filepath.Join(u.remoteBasePath, fileName)
+				//fileName := filepath.Base(cont.Path)
+				paths := strings.Split(cont.Path, u.localBasePath)
+				remotePath = filepath.Join(u.remoteBasePath, paths[1])
+				//remotePath = filepath.Join(u.remoteBasePath, fileName)
 			}
 
 			log.Printf("Remote File: %s\n", remotePath)
@@ -123,14 +130,44 @@ func (u *Uploader) UploadFiles() error {
 			remoteInfo, err := u.sftp.FileInfo(remotePath)
 			if err != nil {
 				if !strings.Contains(err.Error(), "file does not exist") {
-					return fmt.Errorf("failed to get remote file info: %v", err)
+					log.Printf("File not exist, Upload: %s (Size: %s)\n", cont.Path, csize.FormatSize(cont.Info.Size()))
+					if err := u.sftp.UploadFile(cont.Path, remotePath); err != nil {
+						return fmt.Errorf("failed to upload file: %v", err)
+					}
+					continue
 				}
 			}
 
 			if remoteInfo == nil {
 				log.Printf("Upload: %s (Size: %s)\n", cont.Path, csize.FormatSize(cont.Info.Size()))
 				if err := u.sftp.UploadFile(cont.Path, remotePath); err != nil {
-					return fmt.Errorf("failed to upload file: %v", err)
+					// return fmt.Errorf("failed to upload file: %v", err)
+
+					remotePath = remotePath[1:]
+
+					remoteInfo, err = u.sftp.FileInfo(remotePath)
+					if err != nil {
+						log.Printf("Retry Upload: %s (Size: %s)\n", cont.Path, csize.FormatSize(cont.Info.Size()))
+
+						if err := u.sftp.UploadFile(cont.Path, remotePath); err != nil {
+							return fmt.Errorf("failed to upload file: %v", err)
+						}
+						continue
+
+					}
+
+					log.Println("Remotepath changed :", remotePath)
+
+					if remoteInfo.Size() == cont.Info.Size() {
+						log.Printf("File exists and is up-to-date: %s (Size: %s)\n", cont.Path, csize.FormatSize(cont.Info.Size()))
+						continue
+					}
+
+					log.Printf("Retry Upload: %s (Size: %s)\n", cont.Path, csize.FormatSize(cont.Info.Size()))
+
+					if err := u.sftp.UploadFile(cont.Path, remotePath); err != nil {
+						return fmt.Errorf("failed to upload file: %v", err)
+					}
 				}
 
 			} else {
@@ -140,7 +177,10 @@ func (u *Uploader) UploadFiles() error {
 
 				} else if remoteInfo.Size() != cont.Info.Size() {
 					if err := u.sftp.RemoveFile(remotePath); err != nil {
-						return fmt.Errorf("failed to remove file: %v", err)
+						remotePath = remotePath[1:]
+						if err := u.sftp.RemoveFile(remotePath); err != nil {
+							return fmt.Errorf("failed to remove file: %v", err)
+						}
 					}
 				}
 
